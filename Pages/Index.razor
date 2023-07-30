@@ -1,0 +1,80 @@
+﻿@page "/"
+<MudOverlay Visible="isLoading">
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+</MudOverlay>
+<MudText Typo="Typo.h4">Server Information</MudText>
+<MudPaper Elevation="4" Square="false">
+    <MudTable LoadingProgressColor="Color.Info" Breakpoint="Breakpoint.Sm" Loading="isLoading" Striped="false" Items="@servers" Hover="true" Bordered="true" Elevation="1">
+        <HeaderContent>
+            <MudTh>Server Name</MudTh>
+            <MudTh>IPV4 Address</MudTh>
+            <MudTh>IPV6 Address</MudTh>
+            <MudTh>Disk Size</MudTh>
+            <MudTh>CPU Type</MudTh>
+            <MudTh>Memory Size</MudTh>
+            <MudTh>OS</MudTh>
+            <MudTh>Datacenter Location</MudTh>
+            <MudTh>Outgoing Traffic</MudTh>
+            <MudTh>Ingoing Traffic</MudTh>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.PublicNet.Ipv4.Ip</MudTd>
+            <MudTd>@context.PublicNet.Ipv6.Ip</MudTd>
+            <MudTd>@context.PrimaryDiskSize GB</MudTd>
+            <MudTd>@context.ServerType.Cpu_type</MudTd>
+            <MudTd>@context.ServerType.Memory GB</MudTd>
+            <MudTd>@context.Image.OsFlavor</MudTd>
+            <MudTd>@context.Datacenter.Location.City</MudTd>
+            <MudTd>
+                @{
+                    double outgoingTrafficTb = Convert.ToDouble(context.OutgoingTraffic ?? 0) / 1099511627776.0;
+                    double maxTrafficTb = 20.0;
+                }
+                <MudProgressLinear Color="Color.Primary" Value="@(outgoingTrafficTb / maxTrafficTb * 100)" Size="Size.Large" Rounded="true" Max="100" Style="width: 100%;">
+                    <MudText Typo="Typo.caption">@Math.Round(outgoingTrafficTb / maxTrafficTb * 100, 1)%</MudText>
+                </MudProgressLinear>
+                <MudChip Color="Color.Tertiary" Variant="Variant.Outlined" Class="mt-2">@Math.Round(outgoingTrafficTb, 2) TB / 20 TB</MudChip>
+            </MudTd>
+            <MudTd>
+                @{
+                    double ingoingTrafficTb = Convert.ToDouble(context.IngoingTraffic ?? 0) / 1099511627776.0;
+                    double maxTrafficTb = 20.0;
+                }
+                <MudProgressLinear Color="Color.Error" Value="@(ingoingTrafficTb / maxTrafficTb * 100)" Size="Size.Large" Rounded="true" Max="100" Style="width: 100%;">
+                    <MudText Typo="Typo.caption">@Math.Round(ingoingTrafficTb / maxTrafficTb * 100, 1)%</MudText>
+                </MudProgressLinear>
+                <MudChip Color="Color.Tertiary" Variant="Variant.Outlined" Class="mt-2">@Math.Round(ingoingTrafficTb, 2) TB / 20 TB</MudChip>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+@code {
+    List<HetznerDotNet.Api.Server> servers = new List<HetznerDotNet.Api.Server>();
+    bool isLoading = true;
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var tokens = Configuration.GetSection("HetznerApiTokens").Get<string[]>();
+            if (tokens != null)
+            {
+                foreach (var token in tokens)
+                {
+                    HetznerDotNet.ApiCore.ApiToken = token;
+                    var serverInfo = await HetznerDotNet.Api.Server.Get();
+                    servers.AddRange(serverInfo);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
